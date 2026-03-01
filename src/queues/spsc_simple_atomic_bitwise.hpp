@@ -1,5 +1,5 @@
-#ifndef SPSC_SIMPLE_ATOMIC_H
-#define SPSC_SIMPLE_ATOMIC_H
+#ifndef SPSC_SIMPLE_ATOMIC_BITWISE_H
+#define SPSC_SIMPLE_ATOMIC_BITWISE_H
 
 #include <atomic>
 #include <cstddef>
@@ -19,28 +19,37 @@ public:
 private:
     std::vector<T> buffer_;
     std::size_t capacity_;
-    std::atomic<std::size_t> head_;
-    std::atomic<std::size_t> tail_;
+    alignas(64) std::atomic<std::size_t> head_;
+    alignas(64) std::atomic<std::size_t> tail_;
 };
 
 template <typename T>
-SimpleSPSCQueue<T>::SimpleSPSCQueue(std::size_t capacity) : buffer_(capacity), capacity_(capacity), head_(0), tail_(0) {}
+SimpleSPSCQueue<T>::SimpleSPSCQueue(std::size_t capacity) : head_(0), tail_(0) {
+    // Initialize with power of 2
+    std::size_t cap = 1;
+    while (cap < capacity) {
+        cap <<= 1;
+    }
+
+    buffer_.resize(cap);
+    capacity_ = cap;
+}
 
 template <typename T>
 bool SimpleSPSCQueue<T>::push(const T &value)
 {
     std::size_t tail = tail_.load(std::memory_order_relaxed);
-    std::size_t head = head_.load(std::memory_order_relaxed);
+    std::size_t head = head_.load(std::memory_order_acquire);
 
     if ((tail - head) == capacity_)
     {
         return false;
     }
 
-    buffer_[tail % capacity_] = value;
+    buffer_[tail & (capacity_ - 1ull)] = value;
     // release store on tail
     // ensures the value is visible to the consumer before the tail is updated
-    tail_.store(tail + 1, std::memory_order_release);
+    tail_.store(tail + 1ull, std::memory_order_release);
     return true;
 }
 
@@ -57,10 +66,10 @@ bool SimpleSPSCQueue<T>::pop(T &out)
         return false;
     }
 
-    out = buffer_[head % capacity_];
+    out = buffer_[head & (capacity_ - 1ull)];
     // release store on head
     // ensures the reads become visible before new head becomes visible
-    head_.store(head + 1, std::memory_order_release);
+    head_.store(head + 1ull, std::memory_order_release);
     return true;
 }
 
@@ -70,4 +79,4 @@ std::size_t SimpleSPSCQueue<T>::capacity() const
     return capacity_;
 }
 
-#endif // SPSC_SIMPLE_ATOMIC_H
+#endif // SPSC_SIMPLE_ATOMIC_BITWISE_H
