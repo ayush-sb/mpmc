@@ -1,30 +1,32 @@
-#ifndef SPSC_SIMPLE_ATOMIC_BITWISE_H
-#define SPSC_SIMPLE_ATOMIC_BITWISE_H
+#ifndef MPSC_QUEUE_MUTEX_H
+#define MPSC_QUEUE_MUTEX_H
 
 #include <atomic>
 #include <cstddef>
+#include <mutex>
 #include <vector>
 
 template <typename T>
-class SimpleSPSCQueue
+class MPSCQueueMutex
 {
 public:
     using value_type = T;
 
-    explicit SimpleSPSCQueue(std::size_t capacity);
+    explicit MPSCQueueMutex(std::mutex *mtx, std::size_t capacity);
     bool push(const T &value);
     bool pop(T &out);
-    std::size_t capacity() const;
 
 private:
-    std::vector<T> buffer_;
-    std::size_t capacity_;
     alignas(64) std::atomic<std::size_t> head_;
     alignas(64) std::atomic<std::size_t> tail_;
+    std::vector<T> buffer_;
+    std::size_t capacity_;
+    std::size_t mod_;
+    std::mutex *push_mutex_;
 };
 
 template <typename T>
-SimpleSPSCQueue<T>::SimpleSPSCQueue(std::size_t capacity) : head_(0), tail_(0)
+MPSCQueueMutex<T>::MPSCQueueMutex(std::mutex *mtx, std::size_t capacity) : push_mutex_(mtx), head_(0), tail_(0)
 {
     // Initialize with power of 2
     std::size_t cap = 1;
@@ -35,11 +37,14 @@ SimpleSPSCQueue<T>::SimpleSPSCQueue(std::size_t capacity) : head_(0), tail_(0)
 
     buffer_.resize(cap);
     capacity_ = cap;
+    mod_ = cap - 1;
 }
 
 template <typename T>
-bool SimpleSPSCQueue<T>::push(const T &value)
+bool MPSCQueueMutex<T>::push(const T &value)
 {
+    std::lock_guard<std::mutex> lock(*push_mutex_);
+
     std::size_t tail = tail_.load(std::memory_order_relaxed);
     std::size_t head = head_.load(std::memory_order_acquire);
 
@@ -48,7 +53,7 @@ bool SimpleSPSCQueue<T>::push(const T &value)
         return false;
     }
 
-    buffer_[tail & (capacity_ - 1ull)] = value;
+    buffer_[tail & mod_] = value;
     // release store on tail
     // ensures the value is visible to the consumer before the tail is updated
     tail_.store(tail + 1ull, std::memory_order_release);
@@ -56,7 +61,7 @@ bool SimpleSPSCQueue<T>::push(const T &value)
 }
 
 template <typename T>
-bool SimpleSPSCQueue<T>::pop(T &out)
+bool MPSCQueueMutex<T>::pop(T &out)
 {
     std::size_t tail = tail_.load(std::memory_order_acquire);
     std::size_t head = head_.load(std::memory_order_relaxed);
@@ -68,17 +73,11 @@ bool SimpleSPSCQueue<T>::pop(T &out)
         return false;
     }
 
-    out = buffer_[head & (capacity_ - 1ull)];
+    out = buffer_[head & mod_];
     // release store on head
     // ensures the reads become visible before new head becomes visible
     head_.store(head + 1ull, std::memory_order_release);
     return true;
 }
 
-template <typename T>
-std::size_t SimpleSPSCQueue<T>::capacity() const
-{
-    return capacity_;
-}
-
-#endif // SPSC_SIMPLE_ATOMIC_BITWISE_H
+#endif // MPSC_QUEUE_MUTEX_H
