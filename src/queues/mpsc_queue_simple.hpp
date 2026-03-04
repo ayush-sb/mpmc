@@ -34,7 +34,8 @@ SimpleMPSCQueue<T>::SimpleMPSCQueue(std::size_t capacity) : head_(0), tail_(0)
         power_++;
     }
 
-    buffer_.resize(cap);
+    buffer_ = std::vector<T>(cap);
+    seq_ = std::vector<std::atomic<std::size_t>>(cap);
 
     for (std::size_t i = 0; i < cap; ++i)
     {
