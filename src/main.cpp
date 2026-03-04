@@ -60,23 +60,22 @@ int main(int argc, char *argv[])
     std::atomic<bool> measure_flag(false);
 
     // ---------- create threads ----------
-    std::cout << "Creating threads" << std::endl;
 
     std::thread producer1([&]() {
-        std::cout << "Producer thread started on core 2\n";
+        // std::cout << "Producer thread started on core 2\n";
         while (!start_flag.load(std::memory_order_acquire)) {}
 
-        std::cout << "Producer thread 1 starting warmup\n";
+        // std::cout << "Producer thread 1 starting warmup\n";
         for (std::size_t i = 0; i < WARMUP_ITERATIONS; i++) {
             while (!queue.push(i)) {}
         }
-        std::cout << "Producer thread 1 finished warmup\n";
+        // std::cout << "Producer thread 1 finished warmup\n";
 
         warmup_done_counter.fetch_add(1, std::memory_order_release);
 
-        std::cout << "Producer thread 1 finished warmup, waiting for flag to start\n";
+        // std::cout << "Producer thread 1 finished warmup, waiting for flag to start\n";
         while (!measure_flag.load(std::memory_order_acquire)) {}
-        std::cout << "Producer thread 1 starting measurement" << std::endl;
+        // std::cout << "Producer thread 1 starting measurement" << std::endl;
 
         for (std::size_t i = 0; i < N; ++i) {
             while (!queue.push(i)) {}
@@ -84,20 +83,20 @@ int main(int argc, char *argv[])
     });
 
     std::thread producer2([&]() {
-        std::cout << "Producer thread started on core 3\n";
+        // std::cout << "Producer thread started on core 3\n";
         while (!start_flag.load(std::memory_order_acquire)) {}
 
-        std::cout << "Producer thread 2 starting warmup\n";
+        // std::cout << "Producer thread 2 starting warmup\n";
         for (std::size_t i = 0; i < WARMUP_ITERATIONS; i++) {
             while (!queue.push(i)) {}
         }
-        std::cout << "Producer thread 2 finished warmup\n";
+        // std::cout << "Producer thread 2 finished warmup\n";
 
         warmup_done_counter.fetch_add(1, std::memory_order_release);
 
-        std::cout << "Producer thread 2 finished warmup, waiting for flag to start\n";
+        // std::cout << "Producer thread 2 finished warmup, waiting for flag to start\n";
         while (!measure_flag.load(std::memory_order_acquire)) {}
-        std::cout << "Producer thread 2 starting measurement" << std::endl;
+        // std::cout << "Producer thread 2 starting measurement" << std::endl;
 
         for (std::size_t i = 0; i < N; ++i) {
             while (!queue.push(i)) {}
@@ -105,28 +104,28 @@ int main(int argc, char *argv[])
     });
 
     std::thread consumer([&]() {
-        std::cout << "Consumer thread started on core 4\n";
+        // std::cout << "Consumer thread started on core 4\n";
         std::size_t value;
         while (!start_flag.load(std::memory_order_acquire)) {}
 
-        std::cout << "Consumer thread starting warmup\n";
+        // std::cout << "Consumer thread starting warmup\n";
         for (std::size_t i = 0; i < (2 * WARMUP_ITERATIONS); i++) {
-            std::cout << i << std::endl;
+            // std::cout << i << std::endl;
             while (!queue.pop(value)) {}
 
             ans ^= value;
         }
 
-        std::cout << "Consumer thread finished warmup\n";
+        // std::cout << "Consumer thread finished warmup\n";
 
         warmup_done_counter.fetch_add(1, std::memory_order_release);
 
-        std::cout << "Consumer thread finished warmup, waiting for flag to start\n";
+        // std::cout << "Consumer thread finished warmup, waiting for flag to start\n";
         while (!measure_flag.load(std::memory_order_acquire)) {}
 
-        std::cout << "Consumer thread starting measurement" << std::endl;
+        // std::cout << "Consumer thread starting measurement" << std::endl;
         for (std::size_t i = 0; i < (2 * N); ++i) {
-            std::cout << i << std::endl;
+            // std::cout << i << std::endl;
             while (!queue.pop(value)) {}
 
             ans ^= value;
