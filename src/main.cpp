@@ -5,7 +5,8 @@
 #include <sched.h>
 #include <pthread.h>
 
-#include "queues/mpsc_queue_simple.hpp"
+// #include "queues/mpsc_queue_simple.hpp"
+#include "queues/mpsc_queue_simple_optimized.hpp"
 
 void pinToCore(std::thread &thread, int core_id) {
     pthread_t handle = thread.native_handle();
@@ -53,7 +54,7 @@ int main(int argc, char *argv[])
 
     // ---------- initialize queue and shared variables ----------
 
-    SimpleMPSCQueue<std::size_t> queue(CAPACITY);
+    SimpleMPSCQueueOptimized<std::size_t> queue(CAPACITY);
     volatile std::size_t ans = 0;
     std::atomic<bool> start_flag(false);
     std::atomic<int> warmup_done_counter(0);

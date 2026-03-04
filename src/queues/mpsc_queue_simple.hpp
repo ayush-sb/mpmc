@@ -18,8 +18,8 @@ private:
     std::size_t capacity_;
     std::size_t power_;
     std::size_t index_mask_;
-    std::atomic<std::size_t> head_;
-    std::atomic<std::size_t> tail_;
+    alignas(64) std::atomic<std::size_t> head_;
+    alignas(64) std::atomic<std::size_t> tail_;
 };
 
 template <typename T>
@@ -50,7 +50,7 @@ template <typename T>
 bool SimpleMPSCQueue<T>::push(const T &value)
 {
     // reserve slot
-    std::size_t tail = tail_.fetch_add(1ull, std::memory_order_acq_rel);
+    std::size_t tail = tail_.fetch_add(1ull, std::memory_order_relaxed);
 
     // wait until slot is ready for producer
     while (seq_[tail & index_mask_].load(std::memory_order_acquire) != tail) {}
